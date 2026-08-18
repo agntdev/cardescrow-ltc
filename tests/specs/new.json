@@ -1,0 +1,20 @@
+[
+  {
+    "name": "/new",
+    "steps": [
+      {
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Initiate new listing creation flow"
+            }
+          }
+        ],
+        "send": {
+          "text": "/new"
+        }
+      }
+    ]
+  }
+]
