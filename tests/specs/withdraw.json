@@ -1,0 +1,20 @@
+[
+  {
+    "name": "/withdraw",
+    "steps": [
+      {
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Request LTC payout from escrow balance"
+            }
+          }
+        ],
+        "send": {
+          "text": "/withdraw"
+        }
+      }
+    ]
+  }
+]
