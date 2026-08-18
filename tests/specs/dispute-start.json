@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Dispute",
+    "steps": [
+      {
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Raise dispute from purchase message"
+            }
+          }
+        ],
+        "send": {
+          "callback": "dispute:start"
+        }
+      }
+    ]
+  }
+]
