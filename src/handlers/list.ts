@@ -1,6 +1,6 @@
 import { Composer } from "grammy";
 import type { Ctx } from "../bot.js";
-import { activeListings, getListing, storageReady } from "../marketplace.js";
+import { activeListings, feePercentage, formatLtc, getListing, storageReady } from "../marketplace.js";
 import { inlineButton, inlineKeyboard, paginate, registerMainMenuItem } from "../toolkit/index.js";
 
 registerMainMenuItem({ label: "Browse listings", data: "listing:list:0", order: 20 });
@@ -19,5 +19,5 @@ async function show(ctx: Ctx, page: number, edit = false): Promise<void> {
 composer.command("list", async (ctx) => { await show(ctx, 0); });
 composer.callbackQuery("listing:list:0", async (ctx) => { await ctx.answerCallbackQuery(); await show(ctx, 0, true); });
 composer.callbackQuery(/^listing:page:(?:prev|next):(\d+)$/, async (ctx) => { await ctx.answerCallbackQuery(); await show(ctx, Number(ctx.match[1]), true); });
-composer.callbackQuery(/^listing:show:(.+)$/, async (ctx) => { await ctx.answerCallbackQuery(); const listing = await getListing(ctx, ctx.match[1]); if (!listing || listing.status !== "active") { await ctx.editMessageText("That listing is no longer available."); return; } await ctx.editMessageText(`${listing.title}\n${listing.description}\nCondition: ${listing.condition}\nPrice: ${listing.priceLtc} LTC\nQuantity: ${listing.quantity}`, { reply_markup: inlineKeyboard([[inlineButton("Buy", `purchase:init:${listing.id}`)], [inlineButton("Back to listings", "listing:list:0")]]) }); });
+composer.callbackQuery(/^listing:show:(.+)$/, async (ctx) => { await ctx.answerCallbackQuery(); const listing = await getListing(ctx, ctx.match[1]); if (!listing || listing.status !== "active") { await ctx.editMessageText("That listing is no longer available."); return; } const fee = feePercentage(ctx); if (fee === undefined) { await ctx.editMessageText("The seller fee setting isn't valid. Ask the owner to update it."); return; } const payout = listing.priceLtc - listing.priceLtc * fee / 100; await ctx.editMessageText(`${listing.title}\n${listing.description}\nCondition: ${listing.condition}\nPrice: ${formatLtc(listing.priceLtc)} LTC\nSeller fee: ${fee}%\nEstimated seller payout: ${formatLtc(payout)} LTC\nQuantity: ${listing.quantity}`, { reply_markup: inlineKeyboard([[inlineButton("Buy", `purchase:init:${listing.id}`)], [inlineButton("Back to listings", "listing:list:0")]]) }); });
 export default composer;

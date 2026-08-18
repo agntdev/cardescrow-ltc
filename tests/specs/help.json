@@ -8,7 +8,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Use the menu to post a card, browse listings, or save a payout address.\n\nFor a purchase, use the Buy button on the listing. You can also use /new, /list, and /withdraw as shortcuts."
+              "text": "Use the menu to post a card, browse listings, or save a payout address.\n\nFor a purchase, use the Buy button on the listing. Seller fees are 10% and are shown before checkout. You can also use /new, /list, and /withdraw as shortcuts."
             }
           }
         ]
