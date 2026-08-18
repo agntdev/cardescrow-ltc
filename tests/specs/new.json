@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Initiate new listing creation flow"
+              "text": "Enter the card title."
             }
           }
         ],

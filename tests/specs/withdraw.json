@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Request LTC payout from escrow balance"
+              "text": "Enter your Litecoin payout address."
             }
           }
         ],

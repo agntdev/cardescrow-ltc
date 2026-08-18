@@ -154,6 +154,24 @@ export class ChatDO {
       return new Response(null, { status: 204 });
     }
 
+    // Marketplace domain data is intentionally kept in a single named Durable
+    // Object. The feature maintains its own explicit indexes, so this endpoint
+    // never scans the object/keyspace to discover records.
+    if (url.pathname === "/marketplace") {
+      const key = url.searchParams.get("key");
+      const bucket = url.searchParams.get("bucket") === "index" ? "marketplace:index:" : "marketplace:record:";
+      if (!key) return new Response("missing key", { status: 400 });
+      const storageKey = bucket + key;
+      if (request.method === "GET") {
+        const value = await this.state.storage.get<unknown>(storageKey);
+        return value === undefined ? new Response(null, { status: 204 }) : Response.json(value);
+      }
+      if (request.method === "PUT") {
+        await this.state.storage.put(storageKey, await request.json());
+        return new Response(null, { status: 204 });
+      }
+    }
+
     return new Response("not found", { status: 404 });
   }
 

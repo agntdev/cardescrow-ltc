@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Browse active listings with pagination"
+              "text": "No listings yet — marketplace storage isn't set up."
             }
           }
         ],
