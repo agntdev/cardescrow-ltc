@@ -1,5 +1,6 @@
 import { Composer } from "grammy";
 import type { Ctx } from "../bot.js";
+import { feePercentage } from "../marketplace.js";
 import { inlineButton, inlineKeyboard } from "../toolkit/index.js";
 
 // /help — plain-language explanation for non-technical users. This bot is
@@ -8,19 +9,24 @@ import { inlineButton, inlineKeyboard } from "../toolkit/index.js";
 // main menu (`menu:help`). Enhance the copy for your specific bot; keep it short.
 const composer = new Composer<Ctx>();
 
-const HELP =
-  "Use the menu to post a card, browse listings, or save a payout address.\n\n" +
-  "For a purchase, use the Buy button on the listing. You can also use /new, /list, and /withdraw as shortcuts.";
+function helpText(ctx: Ctx): string {
+  const fee = feePercentage(ctx);
+  const feeLine = fee === undefined
+    ? "The seller fee setting needs the owner's attention."
+    : `Seller fees are ${fee}% and are shown before checkout.`;
+  return "Use the menu to post a card, browse listings, or save a payout address.\n\n" +
+    `For a purchase, use the Buy button on the listing. ${feeLine} You can also use /new, /list, and /withdraw as shortcuts.`;
+}
 
 const backToMenu = inlineKeyboard([[inlineButton("⬅️ Back to menu", "menu:main")]]);
 
 composer.command("help", async (ctx) => {
-  await ctx.reply(HELP);
+  await ctx.reply(helpText(ctx));
 });
 
 composer.callbackQuery("menu:help", async (ctx) => {
   await ctx.answerCallbackQuery();
-  await ctx.editMessageText(HELP, { reply_markup: backToMenu });
+  await ctx.editMessageText(helpText(ctx), { reply_markup: backToMenu });
 });
 
 export default composer;

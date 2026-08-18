@@ -1,6 +1,6 @@
 import { Composer } from "grammy";
 import type { Ctx } from "../bot.js";
-import { createListing, storageMessage } from "../marketplace.js";
+import { createListing, feePercentage, formatLtc, storageMessage } from "../marketplace.js";
 import { inlineButton, inlineKeyboard, registerMainMenuItem } from "../toolkit/index.js";
 
 registerMainMenuItem({ label: "➕ New listing", data: "listing:new", order: 10 });
@@ -70,10 +70,13 @@ composer.on("message:text", async (ctx, next) => {
     const quantity = Number(text);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) { await ctx.reply("Enter a whole quantity between 1 and 1,000."); return; }
     if (!draft.title || !draft.description || !draft.priceLtc || !draft.condition) { reset(ctx); await ctx.reply("That listing couldn't be completed. Start a new listing and try again."); return; }
+    const fee = feePercentage(ctx);
+    if (fee === undefined) { await ctx.reply("The seller fee setting isn't valid. Ask the owner to update it."); return; }
     const listing = await createListing(ctx, { title: draft.title, description: draft.description, photos: draft.photos ?? [], priceLtc: draft.priceLtc, condition: draft.condition, quantity });
     reset(ctx);
     if (!listing) { await ctx.reply(storageMessage()); return; }
-    const caption = `${listing.title}\n${listing.description}\nCondition: ${listing.condition}\nPrice: ${listing.priceLtc} LTC\nQuantity: ${listing.quantity}`;
+    const estimatedPayout = listing.priceLtc - listing.priceLtc * fee / 100;
+    const caption = `${listing.title}\n${listing.description}\nCondition: ${listing.condition}\nPrice: ${formatLtc(listing.priceLtc)} LTC\nSeller fee: ${fee}%\nEstimated seller payout: ${formatLtc(estimatedPayout)} LTC\nQuantity: ${listing.quantity}`;
     const keyboard = inlineKeyboard([[inlineButton("Buy", `purchase:init:${listing.id}`)]]);
     if (listing.photos[0]) await ctx.api.sendPhoto(ctx.chat.id, listing.photos[0], { caption, reply_markup: keyboard });
     else await ctx.reply(caption, { reply_markup: keyboard });

@@ -74,7 +74,7 @@ The OWNER provides these; they are collected in chat and injected into the envir
 - **ADMIN_CHAT_ID** — Where dispute alerts and payment issues are sent
   - this is the OWNER's own chat id; the platform already knows it. Read `ADMIN_CHAT_ID` via `ctx.env` (prefer toolkit `adminChatId` / `requireOwner`) — never ask a user, never treat whoever writes first as the admin, never invent claim-admin or open manage for everyone.
   - may be UNSET at runtime: the bot must still start, and the feature needing ADMIN_CHAT_ID must say so plainly instead of failing.
-- **FEE_PERCENTAGE** — Seller fee percentage (default 5%)
+- **FEE_PERCENTAGE** — Seller fee percentage (default 10%)
   - may be UNSET at runtime: the bot must still start, and the feature needing FEE_PERCENTAGE must say so plainly instead of failing.
 
 Your behavioral specs run WITHOUT these values, so no spec may depend on one.
@@ -133,6 +133,6 @@ Call external APIs against their real contract (correct endpoints, ids, params);
 
 ## Assumptions
 
-- Default 5% seller fee applies until changed
+- Default 10% seller fee applies until changed
 - LTC on-chain payments handled externally
 - Listings posted directly in group/channel

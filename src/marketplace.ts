@@ -21,6 +21,10 @@ export type Offer = {
   buyerChatId: number;
   listingId: string;
   amount: number;
+  /** Terms are captured at checkout so later policy changes cannot rewrite a completed sale. */
+  feePercentage: number;
+  feeAmount: number;
+  sellerPayoutAmount: number;
   escrowId: string;
   status: "awaiting_payment" | "confirmed" | "released" | "disputed";
 };
@@ -133,10 +137,19 @@ export async function activeListings(ctx: Ctx): Promise<Listing[]> {
   return values.filter((value): value is Listing => value?.status === "active").sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export async function createOffer(ctx: Ctx, listing: Listing): Promise<Offer | undefined> {
+export function calculateFee(amount: number, percentage: number): number {
+  return Number((amount * percentage / 100).toFixed(8));
+}
+
+export function formatLtc(amount: number): string {
+  return String(Number(amount.toFixed(8)));
+}
+
+export async function createOffer(ctx: Ctx, listing: Listing, sellerFeePercentage: number): Promise<Offer | undefined> {
   if (!ctx.from || !ctx.chat || listing.quantity < 1 || listing.status !== "active") return undefined;
   const escrow: Escrow = { id: id("escrow"), balanceLtc: 0, feeDeducted: 0, releaseStatus: "awaiting_payment" };
-  const offer: Offer = { id: id("offer"), buyerId: ctx.from.id, buyerChatId: ctx.chat.id, listingId: listing.id, amount: listing.priceLtc, escrowId: escrow.id, status: "awaiting_payment" };
+  const feeAmount = calculateFee(listing.priceLtc, sellerFeePercentage);
+  const offer: Offer = { id: id("offer"), buyerId: ctx.from.id, buyerChatId: ctx.chat.id, listingId: listing.id, amount: listing.priceLtc, feePercentage: sellerFeePercentage, feeAmount, sellerPayoutAmount: Number((listing.priceLtc - feeAmount).toFixed(8)), escrowId: escrow.id, status: "awaiting_payment" };
   if (!(await write(ctx, `escrow:${escrow.id}`, escrow))) return undefined;
   if (!(await write(ctx, `offer:${offer.id}`, offer))) return undefined;
   // Reserve one card as soon as checkout starts so a listing cannot oversell
@@ -168,7 +181,8 @@ export async function pendingDisputes(ctx: Ctx): Promise<Dispute[]> {
 
 export function feePercentage(ctx: Ctx): number | undefined {
   const raw = (ctx as Ctx & { env?: Record<string, unknown> }).env?.FEE_PERCENTAGE ?? (typeof process === "undefined" ? undefined : process.env.FEE_PERCENTAGE);
-  if (raw === undefined || raw === "") return 5;
+  // This is the single fee-policy source. New offers persist the resolved value.
+  if (raw === undefined || raw === "") return 10;
   const value = Number(raw);
   return Number.isFinite(value) && value >= 0 && value <= 100 ? value : undefined;
 }
