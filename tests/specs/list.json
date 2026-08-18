@@ -1,0 +1,20 @@
+[
+  {
+    "name": "/list",
+    "steps": [
+      {
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Browse active listings with pagination"
+            }
+          }
+        ],
+        "send": {
+          "text": "/list"
+        }
+      }
+    ]
+  }
+]
