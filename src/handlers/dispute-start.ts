@@ -1,17 +1,19 @@
 import { Composer } from "grammy";
+import type { Ctx } from "../bot.js";
+import { createDispute, getDispute, getOffer, pendingDisputes, saveDispute, saveOffer, storageMessage } from "../marketplace.js";
+import { adminChatId, inlineButton, inlineKeyboard, registerMainMenuItem, requireOwner } from "../toolkit/index.js";
 
-// SCAFFOLD — generated from the bot blueprint BEFORE the agent runs.
-// Keep a LIVE registration (.command / .callbackQuery / …) so this feature is
-// never an empty stub. Replace the reply body with real logic + copy; if you
-// change the user-facing text, update tests/specs to match EXACTLY.
-// Do NOT rewrite src/bot.ts — buildBot() already auto-loads this module.
-// Menu: wire this into /start via registerMainMenuItem({ label: "Dispute", data: "dispute:start" }) if the toolkit exposes it.
-
-const composer = new Composer();
-
-composer.callbackQuery("dispute:start", async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.reply("Raise dispute from purchase message");
-});
-
+registerMainMenuItem({ label: "Dispute help", data: "dispute:start", order: 40 });
+registerMainMenuItem({ label: "Owner desk", data: "dispute:desk", order: 90 });
+const composer = new Composer<Ctx>();
+async function alertOwner(ctx: Ctx, text: string, markup?: ReturnType<typeof inlineKeyboard>): Promise<boolean> { const owner = adminChatId(ctx as unknown as { env?: Record<string, unknown> }); if (!owner) return false; try { await ctx.api.sendMessage(owner, text, markup ? { reply_markup: markup } : undefined); return true; } catch { return false; } }
+function start(ctx: Ctx, offerId?: string): Promise<unknown> { if (!offerId) return ctx.reply("Open a purchase and tap Raise dispute to start a case."); ctx.session.disputeOfferId = offerId; ctx.session.step = "dispute_claim"; return ctx.reply("Describe what happened with this purchase."); }
+composer.callbackQuery("dispute:start", async (ctx) => { await ctx.answerCallbackQuery(); await start(ctx); });
+composer.callbackQuery(/^dispute:start:(.+)$/, async (ctx) => { await ctx.answerCallbackQuery(); const offer = await getOffer(ctx, ctx.match[1]); if (!offer || offer.buyerId !== ctx.from?.id) { await ctx.reply("Only the buyer can raise a dispute for this purchase."); return; } await start(ctx, offer.id); });
+composer.on("message:photo", async (ctx, next) => { if (ctx.session.step !== "dispute_evidence") return next(); const file = ctx.message.photo.at(-1)?.file_id; if (file) { const evidence = ctx.session.draftListing?.photos ?? []; evidence.push(file); ctx.session.draftListing = { photos: evidence }; } await ctx.reply("Evidence added. Send more photos or tap Submit.", { reply_markup: inlineKeyboard([[inlineButton("Submit dispute", "dispute:submit")]]) }); });
+composer.on("message:text", async (ctx, next) => { if (ctx.session.step !== "dispute_claim" && ctx.session.step !== "dispute_evidence") return next(); if (ctx.message.text === "/cancel") { ctx.session.step = undefined; ctx.session.disputeOfferId = undefined; ctx.session.disputeClaim = undefined; ctx.session.draftListing = undefined; await ctx.reply("Dispute cancelled."); return; } if (ctx.session.step !== "dispute_claim") return next(); const claim = ctx.message.text.trim(); if (claim.length < 10 || claim.length > 1500) { await ctx.reply("Describe the issue in 10 to 1,500 characters."); return; } ctx.session.disputeClaim = claim; ctx.session.step = "dispute_evidence"; ctx.session.draftListing = { photos: [] }; await ctx.reply("Send photo evidence, or tap Submit if you have none.", { reply_markup: inlineKeyboard([[inlineButton("Submit dispute", "dispute:submit")]]) }); });
+composer.callbackQuery("dispute:submit", async (ctx) => { await ctx.answerCallbackQuery(); const purchaseId = ctx.session.disputeOfferId; const claim = ctx.session.disputeClaim; if (ctx.session.step !== "dispute_evidence" || !purchaseId || !claim) { await ctx.reply("Start the dispute from your purchase first."); return; } const dispute = await createDispute(ctx, purchaseId, claim, ctx.session.draftListing?.photos ?? []); ctx.session.step = undefined; ctx.session.disputeOfferId = undefined; ctx.session.disputeClaim = undefined; ctx.session.draftListing = undefined; if (!dispute) { await ctx.reply(storageMessage()); return; } const notified = await alertOwner(ctx, `New dispute: ${claim}`, inlineKeyboard([[inlineButton("Review dispute", `dispute:review:${dispute.id}`)]])); await ctx.reply(notified ? "Your dispute was sent to the marketplace owner." : "Your dispute was saved, but owner alerts aren't set up yet."); });
+composer.callbackQuery("dispute:desk", async (ctx) => { if (!(await requireOwner(ctx as unknown as Parameters<typeof requireOwner>[0]))) return; await ctx.answerCallbackQuery(); const disputes = await pendingDisputes(ctx); if (disputes.length === 0) { await ctx.reply("No disputes need review."); return; } await ctx.reply("Disputes awaiting review.", { reply_markup: inlineKeyboard(disputes.slice(0, 8).map((d) => [inlineButton("Review dispute", `dispute:review:${d.id}`)])) }); });
+composer.callbackQuery(/^dispute:review:(.+)$/, async (ctx) => { if (!(await requireOwner(ctx as unknown as Parameters<typeof requireOwner>[0]))) return; await ctx.answerCallbackQuery(); const dispute = await getDispute(ctx, ctx.match[1]); if (!dispute || dispute.resolution !== "pending") { await ctx.reply("That dispute is no longer awaiting review."); return; } await ctx.reply(`Buyer claim: ${dispute.claim}`, { reply_markup: inlineKeyboard([[inlineButton("Approve release", `dispute:resolve:${dispute.id}:approved`), inlineButton("Reject claim", `dispute:resolve:${dispute.id}:rejected`)]] ) }); });
+composer.callbackQuery(/^dispute:resolve:(.+):(approved|rejected)$/, async (ctx) => { if (!(await requireOwner(ctx as unknown as Parameters<typeof requireOwner>[0]))) return; await ctx.answerCallbackQuery(); const dispute = await getDispute(ctx, ctx.match[1]); if (!dispute || dispute.resolution !== "pending") { await ctx.reply("That dispute is no longer awaiting review."); return; } dispute.resolution = ctx.match[2] as "approved" | "rejected"; await saveDispute(ctx, dispute); const offer = await getOffer(ctx, dispute.purchaseId); if (offer) { offer.status = "disputed"; await saveOffer(ctx, offer); try { await ctx.api.sendMessage(offer.buyerChatId, `Your dispute was ${dispute.resolution}.`); } catch { /* Buyer may have blocked the bot. */ } } await ctx.reply(`Dispute ${dispute.resolution}.`); });
 export default composer;

@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Raise dispute from purchase message"
+              "text": "Open a purchase and tap Raise dispute to start a case."
             }
           }
         ],

@@ -31,7 +31,10 @@ export type OwnerAwareCtx = {
   env?: Record<string, unknown> | null;
   from?: { id: number } | undefined;
   chat?: { id: number } | undefined;
-  reply: (text: string, ...args: unknown[]) => unknown | Promise<unknown>;
+  // `any` preserves assignability with grammY's overloaded reply method.
+  // This is a boundary type only; no values are inspected here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reply: (text: string, ...args: any[]) => unknown | Promise<unknown>;
   answerCallbackQuery?: (
     opts?: { text?: string; show_alert?: boolean },
   ) => unknown | Promise<unknown>;

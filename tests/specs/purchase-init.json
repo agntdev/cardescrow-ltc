@@ -7,7 +7,7 @@
           {
             "method": "sendMessage",
             "payload": {
-              "text": "Initiate purchase flow from listing message"
+              "text": "Choose an active listing first."
             }
           }
         ],
